@@ -1,0 +1,57 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:13
+    container_name: postgres_db
+    ports:
+      - "5432:5432" 
+    environment:
+      POSTGRES_DB: cdi_bonus_db
+      POSTGRES_USER: user 
+      POSTGRES_PASSWORD: password 
+    volumes:
+      - postgres_data:/var/lib/postgresql/data 
+    networks:
+      - app_network 
+
+  spark-master:
+    image: bitnami/spark:3.5.0 
+    container_name: spark_master
+    ports:
+      - "9090:8080"
+      - "7077:7077"
+    environment:
+      SPARK_MODE: master
+      SPARK_RPC_AUTHENTICATION_ENABLED: no
+      SPARK_RPC_ENCRYPTION_ENABLED: no
+      SPARK_LOCAL_STORAGE_DB_ENABLED: no
+      SPARK_CLOUD_ENV: local
+      SPARK_NO_DAEMONIZE: "true"
+    networks:
+      - app_network
+
+  spark-worker:
+    image: bitnami/spark:3.5.0
+    container_name: spark_worker
+    environment:
+      SPARK_MODE: worker
+      SPARK_MASTER_URL: spark://spark-master:7077
+      SPARK_WORKER_MEMORY: 1g
+      SPARK_WORKER_CORES: 1
+      SPARK_RPC_AUTHENTICATION_ENABLED: no
+      SPARK_RPC_ENCRYPTION_ENABLED: no
+      SPARK_LOCAL_STORAGE_DB_ENABLED: no
+      SPARK_CLOUD_ENV: local
+      SPARK_NO_DAEMONIZE: "true"
+    depends_on:
+      - spark-master
+    networks:
+      - app_network
+
+volumes:
+  postgres_data: 
+
+networks:
+  app_network:
+    driver: bridge
