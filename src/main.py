@@ -65,6 +65,13 @@ try:
     df_raw_cdc.show(5)
     df_raw_cdc.printSchema()
 
+    print("[MAIN] Chamando a função de cálculo de histórico da carteira...")
+    df_wallet_history = calculate_wallet_history(df_raw_cdc)
+
+    print("\n--- Exemplo da Tabela de Histórico da Carteira (df_wallet_history) ---")
+    df_wallet_history.show(10, truncate=False) # Mostra 10 linhas, sem truncar o conteúdo
+    df_wallet_history.printSchema() # Mostra o esquema do DataFrame resultante
+
 except Exception as e:
     print(f"[MAIN] Erro ao ler o arquivo raw CDC: {e}")
     spark.stop()
