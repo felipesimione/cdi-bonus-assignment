@@ -1,4 +1,4 @@
-version: '3.8'
+# version: '3.8'
 
 services:
   postgres:
@@ -10,10 +10,12 @@ services:
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-    volumes:
+    volumes: 
       - postgres_data:/var/lib/postgresql/data 
+      - ./sql:/app/sql 
+      - ./sql:/docker-entrypoint-initdb.d/
     networks:
-      - app_network 
+      - app_network
 
   spark-master:
     image: bitnami/spark:3.5.0 
@@ -57,11 +59,15 @@ services:
       DATABASE_USER: ${DATABASE_USER}
       DATABASE_PASSWORD: ${DATABASE_PASSWORD}
       SPARK_MASTER_URL: ${SPARK_MASTER_URL}
+      RAW_DATA_PATH: /app/data/raw_cdc_files/wallet_cdc_raw.csv
     depends_on:
       - postgres
       - spark-master
     networks:
       - app_network
+    volumes:
+      - ./data:/app/data
+    command: ["spark-submit", "--master", "spark://spark-master:7077", "/app/src/main.py"]
 
 volumes:
   postgres_data: 

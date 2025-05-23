@@ -1,2 +1,4 @@
 pytest
 pyspark
+pyspark==3.5.5
+psycopg2-binary
