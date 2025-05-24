@@ -82,3 +82,50 @@ def get_db_connection():
             conn.close()
             print("[DB] Conexão com o banco de dados fechada.")
 
+def get_spark_jdbc_properties():
+    """
+    Retorna um dicionário de propriedades de conexão JDBC para uso com PySpark.
+    """
+    db_user = os.getenv("DATABASE_USER")
+    db_password = os.getenv("DATABASE_PASSWORD")
+    db_url = os.getenv("SPARK_JDBC_URL")
+
+    # --- ADICIONE ESTAS LINHAS DE DEBUG ---
+    print(f"[DEBUG DB] Valor de DATABASE_USER: '{db_user}'")
+    print(f"[DEBUG DB] Valor de DATABASE_PASSWORD: '{db_password}'")
+    print(f"[DEBUG DB] Valor de SPARK_JDBC_URL: '{db_url}'")
+    # -------------------------------------
+
+    if not db_user or not db_password:
+        raise ValueError("Variáveis de ambiente DATABASE_USER ou DATABASE_PASSWORD não definidas para Spark JDBC.")
+
+    jdbc_properties = {
+        "user": db_user,
+        "password": db_password,
+        "driver": "org.postgresql.Driver" # Driver JDBC para PostgreSQL
+    }
+
+    # --- ADICIONE ESTA LINHA DE DEBUG ---
+    print(f"[DEBUG DB] Dicionário jdbc_properties final: {jdbc_properties}")
+    # -------------------------------------
+
+    return db_url, jdbc_properties
+
+def get_min_max_dates_from_wallet_history():
+    """
+    Busca a data mínima e máxima da tabela wallet_history.
+    Retorna (min_date, max_date) como objetos date.
+    """
+    min_date = None
+    max_date = None
+    with get_db_connection() as conn:
+        cur = conn.cursor()
+        cur.execute("SELECT MIN(timestamp::date), MAX(timestamp::date) FROM wallet_history;")
+        result = cur.fetchone()
+        if result and result[0] and result[1]:
+            min_date = result[0]
+            max_date = result[1]
+            print(f"[DB] Datas min/max encontradas em wallet_history: {min_date} a {max_date}")
+        else:
+            print("[DB] Nenhum dado encontrado em wallet_history para determinar o período.")
+    return min_date, max_date

@@ -1,92 +1,90 @@
-# src/setup_data.py
-
 import csv
 import random
 import datetime
 import os
-import psycopg2
-import time
 from db import get_db_connection
 
-# --- Configurações para Geração de Dados ---
-# Estas podem ser lidas de variáveis de ambiente no script principal
-DEFAULT_NUM_LINES = 100000
-DEFAULT_NUM_USERS = 1000
-# Caminho de saída relativo ao diretório de execução (será /app dentro do contêiner)
+# --- Variables configuration ---
+# Você pode ajustar esses valores conforme a necessidade do seu teste
+DEFAULT_NUM_LINES = 10000 # Reduzi para um teste mais rápido, pode voltar para 1M
+DEFAULT_NUM_USERS = 100   # Reduzi para um teste mais rápido, pode voltar para 5K
 DEFAULT_OUTPUT_DIR = "data/raw_cdc_files"
 DEFAULT_OUTPUT_FILENAME = "wallet_cdc_raw.csv"
 MIN_AMOUNT_CHANGE = -1000.0
 MAX_AMOUNT_CHANGE = 5000.0
-TIME_RANGE_DAYS = 365
+TIME_RANGE_DAYS = 90
 
-# --- Função para gerar um timestamp aleatório dentro de um intervalo ---
+# --- Function to generate a random timestamp within a range ---
+# Esta função agora gera um timestamp aleatório com microssegundos para cada evento.
 def random_timestamp(start_date, end_date):
+    """
+    Generates a random timestamp (datetime object) within a specified date range,
+    at second precision.
+    """
     time_between_dates = end_date - start_date
-    days_between_dates = time_between_dates.days
-    random_number_of_days = random.randrange(days_between_dates)
-    random_date = start_date + datetime.timedelta(days=random_number_of_days)
+    total_seconds = int(time_between_dates.total_seconds())
+    if total_seconds <= 0: # Adicionado para evitar erro no randrange se start_date == end_date
+        return start_date.replace(microsecond=0)
+        
+    random_seconds_offset = random.randrange(total_seconds)
+    # Gera o timestamp e remove os microssegundos
+    return (start_date + datetime.timedelta(seconds=random_seconds_offset)).replace(microsecond=0)
 
-    random_time = datetime.timedelta(
-        hours=random.randint(0, 23),
-        minutes=random.randint(0, 59),
-        seconds=random.randint(0, 59),
-        microseconds=random.randint(0, 999999)
-    )
-    return random_date + random_time
-
-# --- Função para gerar os dados raw CDC ---
+# --- Function to generate raw CDC data ---
 def generate_raw_cdc_data(num_lines, num_users, output_dir, output_filename):
+    """
+    Generates raw Change Data Capture (CDC) data for user wallets.
+    Ensures globally unique and chronologically ordered timestamps (at second precision) 
+    in the output CSV.
+    """
     print(f"Generating {num_lines} raw CDC data for {num_users} users...")
 
     os.makedirs(output_dir, exist_ok=True)
     output_filepath = os.path.join(output_dir, output_filename)
 
-    end_date = datetime.datetime.now(datetime.timezone.utc)
-    start_date = end_date - datetime.timedelta(days=TIME_RANGE_DAYS)
+    # Gerar timestamps como timezone-aware (UTC)
+    end_date = datetime.datetime.now(datetime.timezone.utc).replace(microsecond=0)
+    start_date = (end_date - datetime.timedelta(days=TIME_RANGE_DAYS)).replace(microsecond=0)
 
-    all_records = []
+    all_records_with_initial_timestamps = []
+    user_ids_pool = list(range(1, num_users + 1))
 
-    lines_per_user = num_lines // num_users
-    remaining_lines = num_lines % num_users
+    # 1. Gerar todos os registros com um timestamp aleatório inicial para cada um
+    for _ in range(num_lines):
+        user_id = random.choice(user_ids_pool)
+        amount_change = random.uniform(MIN_AMOUNT_CHANGE, MAX_AMOUNT_CHANGE)
+        timestamp = random_timestamp(start_date, end_date) 
+        
+        all_records_with_initial_timestamps.append({
+            'user_id': user_id,
+            'timestamp': timestamp, # Armazenar como objeto datetime por enquanto
+            'amount_change': round(amount_change, 2)
+        })
 
-    user_lines_counts = [lines_per_user] * num_users
-    for i in range(remaining_lines):
-        user_lines_counts[i] += 1
+    print("Sorting all records by initial timestamp...")
+    # 2. Ordenar todos os registros globalmente pelo timestamp gerado
+    all_records_with_initial_timestamps.sort(key=lambda x: x['timestamp'])
 
-    user_ids = list(range(1, num_users + 1))
-    random.shuffle(user_ids) 
-
-    for i, user_id in enumerate(user_ids):
-        num_events_for_user = user_lines_counts[i]
-        user_records = []
-
-        current_timestamp = random_timestamp(start_date, start_date + datetime.timedelta(days=TIME_RANGE_DAYS // 10)) 
-
-        for _ in range(num_events_for_user):
-            
-            time_delta = datetime.timedelta(
-                minutes=random.randint(1, 60),
-                hours=random.randint(0, 23)
-            )
-            current_timestamp += time_delta
-
-            if current_timestamp > end_date:
-                current_timestamp = end_date - datetime.timedelta(seconds=random.randint(1, 60)) 
-
-            amount_change = random.uniform(MIN_AMOUNT_CHANGE, MAX_AMOUNT_CHANGE)
-
-            timestamp_str = current_timestamp.isoformat()
-
-            user_records.append({
-                'user_id': user_id,
-                'timestamp': timestamp_str,
-                'amount_change': round(amount_change, 2)
-            })
-
-        all_records.extend(user_records)
-
-    print("Sorting all records by timestamp...")
-    all_records.sort(key=lambda x: x['timestamp'])
+    print("Ensuring unique timestamps (at second precision) for all records...")
+    # 3. Iterar pelos registros ordenados e garantir a unicidade global
+    #    Se dois registros consecutivos tiverem o mesmo timestamp (precisão de segundo), 
+    #    incrementa o segundo em 1 segundo.
+    final_records = []
+    previous_timestamp = None 
+    
+    for record in all_records_with_initial_timestamps:
+        current_timestamp = record['timestamp'] # Já está com microsecond=0
+        
+        # Se o timestamp atual for igual ou anterior ao anterior, incrementa-o em 1 segundo
+        if previous_timestamp and current_timestamp <= previous_timestamp:
+            current_timestamp = previous_timestamp + datetime.timedelta(seconds=1)
+        
+        # Formatar o timestamp para a string YYYY-MM-DDTHH:MM:SS
+        # O objeto datetime é UTC-aware, mas strftime não inclui o offset por padrão.
+        # Isso é bom se o PySpark for configurado para interpretar timestamps sem offset como UTC.
+        record['timestamp'] = current_timestamp.strftime('%Y-%m-%dT%H:%M:%S')
+        final_records.append(record)
+        previous_timestamp = current_timestamp
 
     print(f"Writing data to the file {output_filepath}...")
     with open(output_filepath, 'w', newline='') as csvfile:
@@ -94,39 +92,43 @@ def generate_raw_cdc_data(num_lines, num_users, output_dir, output_filename):
         writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
 
         writer.writeheader()
-        writer.writerows(all_records)
+        writer.writerows(final_records)
 
     print(f"File generation completed. Saved in: {output_filepath}")
-    print(f"Total number of lines generated: {len(all_records)}")
+    print(f"Total number of lines generated: {len(final_records)}")
 
-# --- Função para inserir usuários ---
-# Não precisa mais receber db_url, user, password, pois get_db_connection lê das env vars
+# --- Function to insert users into the database ---
 def insert_users(num_users):
     """
-    Insere usuários na tabela 'users' usando o context manager de conexão.
+    Inserts a specified number of users into the 'users' table in the database.
+    Handles conflicts to avoid re-inserting existing users.
     """
-    print(f"[SETUP] Iniciando inserção de {num_users} usuários na tabela 'users'...")
+    print(f"[SETUP] Starting to insert {num_users} users into the 'users' table...")
 
     try:
-        # Usa o context manager para obter e gerenciar a conexão
         with get_db_connection() as conn:
-            # Usa um context manager para o cursor também (boa prática)
             with conn.cursor() as cur:
                 insert_sql = "INSERT INTO users (user_id) VALUES (%s) ON CONFLICT (user_id) DO NOTHING;"
                 user_ids_to_insert = [(i,) for i in range(1, num_users + 1)]
 
                 cur.executemany(insert_sql, user_ids_to_insert)
 
-            # Commit a transação após a inserção (dentro do bloco 'with conn:')
             conn.commit()
-            print(f"[SETUP] Usuários inseridos ou já existentes.")
+            print(f"[SETUP] User inserted or already exists: {num_users}")
 
     except Exception as e:
-        # O context manager get_db_connection já fecha a conexão em caso de erro
-        # Mas podemos adicionar log adicional aqui se necessário
-        print(f"[SETUP] Erro durante a inserção de usuários: {e}")
-        # A exceção já foi levantada pelo context manager ou pelo código acima
-        raise # Re-levanta a exceção para que o chamador (main.py) saiba que falhou
+        print(f"[SETUP] Error during user insertion: {e}")
+        raise
 
-    print("[SETUP] Inserção de usuários concluída.")
+    print("[SETUP] Users inserted successfully.")
 
+if __name__ == "__main__":
+    # Example usage when running this script directly
+    num_lines = DEFAULT_NUM_LINES
+    num_users = DEFAULT_NUM_USERS
+    output_dir = DEFAULT_OUTPUT_DIR
+    output_filename = DEFAULT_OUTPUT_FILENAME
+
+    generate_raw_cdc_data(num_lines, num_users, output_dir, output_filename)
+    # A inserção de usuários é feita separadamente no main.py ou pode ser chamada aqui também
+    # insert_users(num_users)
