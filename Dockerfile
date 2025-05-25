@@ -22,13 +22,14 @@ WORKDIR /app
 # Copie o arquivo de dependências e instale-as
 # Certifique-se que requirements.txt inclui pyspark e psycopg2-binary
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN python -m pip install --no-cache-dir -r requirements.txt
 
 COPY postgresql-42.6.0.jar /opt/bitnami/spark/jars/
 
 # Copie o código da sua aplicação para o contêiner
 # Isso copiará src/main.py, src/setup_data.py, src/db.py, etc.
 COPY src/ ./src/
+COPY tests/ ./tests/
 
 # NÃO COPIE A PASTA data/ AQUI!
 # Ela será montada como um volume em tempo de execução via docker-compose.yml

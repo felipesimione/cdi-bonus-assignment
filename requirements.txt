@@ -1,4 +1,6 @@
-pyspark==3.5.5
+pyspark==3.5.1
 psycopg2-binary
 python-bcb 
 pytest
+pandas
+pytest-mock

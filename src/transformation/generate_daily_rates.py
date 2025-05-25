@@ -1,7 +1,5 @@
-# src/generate_daily_rates.py (no significant interface changes, but good to review)
-
 from bcb import sgs
-from datetime import date, timedelta, datetime
+from datetime import date, timedelta
 from src.db import get_db_connection, get_min_max_dates_from_wallet_history
 
 def fetch_cdi_daily_rates(start_date, end_date):
@@ -57,25 +55,24 @@ def insert_daily_rates_into_db():
     with get_db_connection() as conn:
         cur = conn.cursor()
         
-        current_date = start_date_for_cdi
-        while current_date <= end_date_for_cdi:
-            daily_rate = cdi_data.get(current_date)
-            
-            if daily_rate is not None:
-                insert_sql = """
-                INSERT INTO daily_interest_rates (rate_date, daily_rate)
-                VALUES (%s, %s)
-                ON CONFLICT (rate_date) DO UPDATE SET daily_rate = EXCLUDED.daily_rate;
-                """
-                cur.execute(insert_sql, (current_date, float(daily_rate)))
-            else:
-                print(f"Warning: No CDI rate found from BCB for {current_date}. Skipping this day.")
-            
-            current_date += timedelta(days=1)
+        try:
+            current_date = start_date_for_cdi
+            while current_date <= end_date_for_cdi:
+                daily_rate = cdi_data.get(current_date)
+                
+                if daily_rate is not None:
+                    insert_sql = """
+                    INSERT INTO daily_interest_rates (rate_date, daily_rate)
+                    VALUES (%s, %s)
+                    ON CONFLICT (rate_date) DO UPDATE SET daily_rate = EXCLUDED.daily_rate;
+                    """
+                    cur.execute(insert_sql, (current_date, float(daily_rate)))
+                else:
+                    print(f"Warning: No CDI rate found from BCB for {current_date}. Skipping this day.")
+                
+                current_date += timedelta(days=1)
 
-        conn.commit()
-        print("\nData for daily_interest_rates generated and inserted successfully!")
-
-# The __main__ block is removed or simplified, as the function will be called from main.py
-# if __name__ == "__main__":
-#    insert_daily_rates_into_db()
+            conn.commit()
+            print("\nData for daily_interest_rates generated and inserted successfully!")
+        finally:
+            cur.close()

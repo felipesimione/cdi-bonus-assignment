@@ -14,46 +14,43 @@ NUM_USERS = int(os.getenv("NUM_USERS", DEFAULT_NUM_USERS))
 RAW_DATA_PATH = os.getenv("RAW_DATA_PATH", os.path.join(DEFAULT_OUTPUT_DIR, DEFAULT_OUTPUT_FILENAME))
 
 def create_spark_session():
-    """
-    Cria e retorna uma sessão Spark configurada.
-    """
-    print("Criando sessão Spark...")
+    print("Creating Spark session...")
     spark = SparkSession.builder \
         .appName("CDIBonusCalculation") \
         .master(SPARK_MASTER_URL) \
         .config("spark.jars", "/opt/bitnami/spark/jars/postgresql-42.6.0.jar") \
         .config("spark.sql.legacy.timeParserPolicy", "LEGACY") \
         .getOrCreate()
-    print("Sessão Spark criada com sucesso.")
+    print("Spark session created successfully.")
     return spark
 
 def step_generate_raw_data(RAW_DATA_PATH, NUM_LINES, NUM_USERS):
     if not os.path.exists(RAW_DATA_PATH):
-        print(f"[MAIN] Arquivo de dados raw não encontrado ({RAW_DATA_PATH}). Iniciando geração...")
+        print(f"[MAIN] Raw data file not found ({RAW_DATA_PATH}). Starting generation...")
         generate_raw_cdc_data(NUM_LINES, NUM_USERS, os.path.dirname(RAW_DATA_PATH), os.path.basename(RAW_DATA_PATH))
-        print("[MAIN] Geração de dados raw concluída.")
+        print("[MAIN] Raw data generation completed.")
     else:
-        print(f"[MAIN] Arquivo de dados raw encontrado ({RAW_DATA_PATH}). Pulando geração.")
+        print(f"[MAIN] Raw data file found ({RAW_DATA_PATH}). Skipping generation.")
 
     raw_data_dir = os.path.dirname(RAW_DATA_PATH)
     raw_data_filename = os.path.basename(RAW_DATA_PATH)
 
     if not os.path.exists(RAW_DATA_PATH):
-        print(f"[MAIN] Arquivo de dados raw não encontrado ({RAW_DATA_PATH}). Iniciando geração...")
+        print(f"[MAIN] Raw data file not found ({RAW_DATA_PATH}). Starting generation...")
         generate_raw_cdc_data(NUM_LINES, NUM_USERS, raw_data_dir, raw_data_filename)
-        print("[MAIN] Geração de dados raw concluída.")
+        print("[MAIN] Raw data generation completed.")
     else:
-        print(f"[MAIN] Arquivo de dados raw encontrado ({RAW_DATA_PATH}). Pulando geração.")
+        print(f"[MAIN] Raw data file found ({RAW_DATA_PATH}). Skipping generation.")
 
 
 def step_insert_users(NUM_USERS):
-    print("[MAIN] Iniciando inserção de usuários no banco de dados...")
+    print("[MAIN] Starting user insertion into the database...")
     insert_users(NUM_USERS)
-    print("[MAIN] Inserção de usuários concluída.")
+    print("[MAIN] User insertion completed.")
 
 
 def step_run_wallet_history_calculation(spark, RAW_DATA_PATH):
-    print(f"[MAIN] Lendo arquivo raw CDC de: {RAW_DATA_PATH}")
+    print(f"[MAIN] Reading raw CDC file from: {RAW_DATA_PATH}")
     raw_schema = StructType([
         StructField("user_id", IntegerType(), True),
         StructField("timestamp", StringType(), True),
@@ -66,23 +63,16 @@ def step_run_wallet_history_calculation(spark, RAW_DATA_PATH):
             header=True,
             schema=raw_schema
         )
-        print("[MAIN] Arquivo raw CDC lido com sucesso.")
+        print("[MAIN] Raw CDC file read successfully.")
 
         df_raw_cdc.show(5)
         df_raw_cdc.printSchema()
 
-        print("[MAIN] Chamando a função de cálculo de histórico da carteira...")
+        print("[MAIN] Calling the wallet history calculation function...")
         df_wallet_history = calculate_wallet_history(df_raw_cdc)
 
         DB_TABLE_WALLET_HISTORY = "wallet_history"
         jdbc_url, jdbc_properties = get_spark_jdbc_properties()
-
-        # --- ADICIONE ESTAS LINHAS PARA DEPURAR O DATAFRAME ANTES DA ESCRITA ---
-        print("[MAIN] Schema do df_wallet_history antes da escrita JDBC:")
-        df_wallet_history.printSchema()
-        print("[MAIN] Amostra do df_wallet_history antes da escrita JDBC:")
-        df_wallet_history.show(5, truncate=False) # truncate=False para ver o timestamp completo
-        # --- FIM DAS LINHAS DE DEPURACAO ---
 
         df_wallet_history.write.jdbc(
             url=jdbc_url,
@@ -92,7 +82,7 @@ def step_run_wallet_history_calculation(spark, RAW_DATA_PATH):
         )
 
     except Exception as e:
-        print(f"[MAIN] Erro ao ler o arquivo raw CDC: {e}")
+        print(f"[MAIN] Error reading the raw CDC file: {e}")
         spark.stop()
         exit(1)
 

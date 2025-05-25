@@ -1,120 +1,98 @@
-# src/db.py
-
 import os
 import psycopg2
 import time
 from contextlib import contextmanager
-from urllib.parse import urlparse # Para parsear a URL do banco de dados
+from urllib.parse import urlparse
 
-# --- Configurações de Retry ---
-MAX_DB_RETRIES = 20 # Número máximo de tentativas de conexão
-DB_RETRY_DELAY = 3 # Segundos para esperar entre as tentativas
+MAX_DB_RETRIES = 20
+DB_RETRY_DELAY = 3
 
-# --- Context Manager para Conexão com o Banco de Dados ---
 @contextmanager
 def get_db_connection():
     """
-    Context manager para obter uma conexão com o banco de dados PostgreSQL.
-    Lê as credenciais de variáveis de ambiente e implementa lógica de retry.
-    Garante que a conexão seja fechada ao sair do bloco 'with'.
+    Context manager to obtain a connection to the PostgreSQL database.
+    Reads credentials from environment variables and implements retry logic.
+    Ensures the connection is closed when exiting the 'with' block.
     """
     db_url = os.getenv("DATABASE_URL")
     db_user = os.getenv("DATABASE_USER")
     db_password = os.getenv("DATABASE_PASSWORD")
 
     if not db_url or not db_user or not db_password:
-        raise ValueError("Variáveis de ambiente DATABASE_URL, DATABASE_USER ou DATABASE_PASSWORD não definidas.")
+        raise ValueError("Environment variables DATABASE_URL, DATABASE_USER or DATABASE_PASSWORD not set.")
 
     conn = None
     db_params = {}
 
-    # Parse a URL do banco de dados
-    # Ex: postgresql://user:password@host:port/dbname
     try:
         parsed_url = urlparse(db_url)
         db_params = {
-            'database': parsed_url.path[1:], # Remove a barra inicial
-            'user': db_user, # Usar user/password das env vars, não da URL (mais seguro)
+            'database': parsed_url.path[1:],
+            'user': db_user,
             'password': db_password,
             'host': parsed_url.hostname,
-            'port': parsed_url.port if parsed_url.port else 5432 # Default para 5432
+            'port': parsed_url.port if parsed_url.port else 5432
         }
     except Exception as e:
-        raise ValueError(f"Erro ao parsear DATABASE_URL '{db_url}': {e}")
+        raise ValueError(f"Error parsing DATABASE_URL '{db_url}': {e}")
 
+    print(f"[DB] Trying to connect to the database at {db_params.get('host')}:{db_params.get('port')}/{db_params.get('database')}...")
 
-    print(f"[DB] Tentando conectar ao banco de dados em {db_params.get('host')}:{db_params.get('port')}/{db_params.get('database')}...")
-
-    # Lógica de retry para esperar o banco de dados ficar pronto
     for i in range(MAX_DB_RETRIES):
         try:
             conn = psycopg2.connect(**db_params)
-            print("[DB] Conexão com o banco de dados estabelecida.")
-            break # Sai do loop de retry se conectar com sucesso
+            print("[DB] Database connection established.")
+            break 
         except psycopg2.OperationalError as e:
-            print(f"[DB] Erro de conexão com o banco de dados (Tentativa {i+1}/{MAX_DB_RETRIES}): {e}")
+            print(f"[DB] Database connection error (Attempt {i+1}/{MAX_DB_RETRIES}): {e}")
             if i < MAX_DB_RETRIES - 1:
-                print(f"[DB] Aguardando {DB_RETRY_DELAY} segundos antes de tentar novamente...")
+                print(f"[DB] Waiting {DB_RETRY_DELAY} seconds before trying again...")
                 time.sleep(DB_RETRY_DELAY)
             else:
-                print("[DB] Número máximo de tentativas de conexão excedido.")
-                raise # Levanta a exceção se falhar após todas as tentativas
+                print("[DB] Maximum number of connection attempts exceeded.")
+                raise
         except Exception as e:
-             print(f"[DB] Erro inesperado ao conectar ao banco de dados (Tentativa {i+1}/{MAX_DB_RETRIES}): {e}")
-             if i < MAX_DB_RETRIES - 1:
-                print(f"[DB] Aguardando {DB_RETRY_DELAY} segundos antes de tentar novamente...")
+            print(f"[DB] Unexpected error connecting to the database (Attempt {i+1}/{MAX_DB_RETRIES}): {e}")
+            if i < MAX_DB_RETRIES - 1:
+                print(f"[DB] Waiting {DB_RETRY_DELAY} seconds before trying again...")
                 time.sleep(DB_RETRY_DELAY)
-             else:
-                print("[DB] Número máximo de tentativas de conexão excedido.")
+            else:
+                print("[DB] Maximum number of connection attempts exceeded.")
                 raise
 
-
     if conn is None:
-         # Isso só deve acontecer se o loop de retry terminar sem sucesso
-         raise ConnectionError("Não foi possível estabelecer conexão com o banco de dados após várias tentativas.")
+        raise ConnectionError("Could not establish a connection to the database after several attempts.")
 
     try:
-        # O código dentro do bloco 'with' será executado aqui
         yield conn
     finally:
-        # Este bloco é sempre executado ao sair do bloco 'with'
         if conn:
             conn.close()
-            print("[DB] Conexão com o banco de dados fechada.")
+            print("[DB] Database connection closed.")
 
 def get_spark_jdbc_properties():
     """
-    Retorna um dicionário de propriedades de conexão JDBC para uso com PySpark.
+    Returns a dictionary of JDBC connection properties for use with PySpark.
     """
     db_user = os.getenv("DATABASE_USER")
     db_password = os.getenv("DATABASE_PASSWORD")
     db_url = os.getenv("SPARK_JDBC_URL")
 
-    # --- ADICIONE ESTAS LINHAS DE DEBUG ---
-    print(f"[DEBUG DB] Valor de DATABASE_USER: '{db_user}'")
-    print(f"[DEBUG DB] Valor de DATABASE_PASSWORD: '{db_password}'")
-    print(f"[DEBUG DB] Valor de SPARK_JDBC_URL: '{db_url}'")
-    # -------------------------------------
-
     if not db_user or not db_password:
-        raise ValueError("Variáveis de ambiente DATABASE_USER ou DATABASE_PASSWORD não definidas para Spark JDBC.")
+        raise ValueError("Environment variables DATABASE_USER or DATABASE_PASSWORD not set for Spark JDBC.")
 
     jdbc_properties = {
         "user": db_user,
         "password": db_password,
-        "driver": "org.postgresql.Driver" # Driver JDBC para PostgreSQL
+        "driver": "org.postgresql.Driver"
     }
-
-    # --- ADICIONE ESTA LINHA DE DEBUG ---
-    print(f"[DEBUG DB] Dicionário jdbc_properties final: {jdbc_properties}")
-    # -------------------------------------
 
     return db_url, jdbc_properties
 
 def get_min_max_dates_from_wallet_history():
     """
-    Busca a data mínima e máxima da tabela wallet_history.
-    Retorna (min_date, max_date) como objetos date.
+    Fetches the minimum and maximum date from the wallet_history table.
+    Returns (min_date, max_date) as date objects.
     """
     min_date = None
     max_date = None
@@ -125,7 +103,7 @@ def get_min_max_dates_from_wallet_history():
         if result and result[0] and result[1]:
             min_date = result[0]
             max_date = result[1]
-            print(f"[DB] Datas min/max encontradas em wallet_history: {min_date} a {max_date}")
+            print(f"[DB] Min/max dates found in wallet_history: {min_date} to {max_date}")
         else:
-            print("[DB] Nenhum dado encontrado em wallet_history para determinar o período.")
+            print("[DB] No data found in wallet_history to determine the period.")
     return min_date, max_date

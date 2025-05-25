@@ -88,7 +88,7 @@ services:
       - app_network
     volumes:
       - ./data:/app/data
-    command: ["pytest", "tests/"]
+    command: ["python", "-m", "pytest", "tests/"]
 
 volumes:
   postgres_data: 
