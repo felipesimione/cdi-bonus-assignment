@@ -1,6 +1,7 @@
 import pytest
 from unittest.mock import patch, MagicMock, call
 from datetime import date, datetime
+import logging
 
 from src.transformation.calculate_cdi_bonus import calculate_cdi_bonus_for_day, calculate_cdi_bonus_for_period
 
@@ -24,11 +25,10 @@ def create_spark_df(spark, data, schema):
 @patch('src.transformation.calculate_cdi_bonus.get_db_connection')
 @patch('pyspark.sql.DataFrameWriter.save')
 @patch('pyspark.sql.DataFrameReader.load')
-def test_calculate_cdi_bonus_for_day_success_eligible_users(mock_load, mock_save, mock_get_db_connection, spark_session, mocker):
+def test_calculate_cdi_bonus_for_day_success_eligible_users(mock_load, mock_save, mock_get_db_connection, spark_session, caplog):
     """
     Tests successful bonus calculation for eligible users.
     """
-    mock_print = mocker.patch('builtins.print')
     mock_jdbc_url = "jdbc:postgresql://testhost/testdb"
     mock_jdbc_properties = {"user": "testuser", "password": "testpassword"}
     calculation_date = date(2024, 5, 15)
@@ -61,14 +61,15 @@ def test_calculate_cdi_bonus_for_day_success_eligible_users(mock_load, mock_save
 
     mock_load.side_effect = [mock_rates_df, mock_wallet_df]
 
-    calculate_cdi_bonus_for_day(spark_session, calculation_date, mock_jdbc_url, mock_jdbc_properties)
+    with caplog.at_level(logging.INFO):
+        calculate_cdi_bonus_for_day(spark_session, calculation_date, mock_jdbc_url, mock_jdbc_properties)
 
     assert mock_load.call_count == 2
     mock_get_db_connection.assert_called_once()
     mock_cursor.execute.assert_called_once_with("DELETE FROM daily_bonus_payouts WHERE payout_date = %s;", (calculation_date,))
     
-    mock_print.assert_any_call(f"Users Eligible for Bonus in {calculation_date}: 2")
-    mock_print.assert_any_call(f"CDI Bonus Calculated for Payout in {calculation_date}: 2 records.")
+    assert f"Users Eligible for Bonus in {calculation_date}: 2" in caplog.text
+    assert f"CDI Bonus Calculated for Payout in {calculation_date}: 2 records." in caplog.text
     mock_save.assert_called_once()
 
 

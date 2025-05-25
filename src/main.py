@@ -7,6 +7,16 @@ from setup_data import generate_raw_cdc_data, insert_users, DEFAULT_NUM_LINES, D
 from transformation.wallet_history import calculate_wallet_history
 from src.transformation.calculate_cdi_bonus import calculate_cdi_bonus_for_period
 from src.transformation.generate_daily_rates import insert_daily_rates_into_db
+import logging
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    handlers=[
+        logging.FileHandler("app.log", encoding="utf-8"),
+        logging.StreamHandler()
+    ]
+)
 
 SPARK_MASTER_URL = os.getenv("SPARK_MASTER_URL", "spark://spark-master:7077")
 NUM_LINES = int(os.getenv("NUM_LINES", DEFAULT_NUM_LINES))

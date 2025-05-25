@@ -3,6 +3,9 @@ from pyspark.sql.functions import col, lit, unix_timestamp, max, row_number, to_
 from pyspark.sql.window import Window
 from datetime import date, timedelta
 from src.db import get_spark_jdbc_properties, get_db_connection, get_min_max_dates_from_wallet_history
+import logging
+
+logger = logging.getLogger(__name__)
 
 def calculate_cdi_bonus_for_day(spark: SparkSession, calculation_date: date, jdbc_url: str, jdbc_properties: dict):
     """
@@ -14,7 +17,7 @@ def calculate_cdi_bonus_for_day(spark: SparkSession, calculation_date: date, jdb
         jdbc_url (str): The JDBC connection URL for the database.
         jdbc_properties (dict): JDBC properties dictionary (user, password, driver).
     """
-    print(f"\n--- Processing bonus for date: {calculation_date} ---")
+    logger.info(f"\n--- Processing bonus for date: {calculation_date} ---")
 
     print(f"Reading interest rates from daily_interest_rates table for {calculation_date}...")
     daily_interest_rates_df = spark.read \
@@ -26,13 +29,13 @@ def calculate_cdi_bonus_for_day(spark: SparkSession, calculation_date: date, jdb
         .filter(col("rate_date") == calculation_date)
 
     if daily_interest_rates_df.count() == 0:
-        print(f"Error: No interest rate found for date {calculation_date}. Skipping this day.")
+        logger.info(f"Error: No interest rate found for date {calculation_date}. Skipping this day.")
         return
 
     current_daily_rate = daily_interest_rates_df.select("daily_rate").collect()[0][0]
-    print(f"Interest rate for {calculation_date}: {current_daily_rate:.8f}")
+    logger.info(f"Interest rate for {calculation_date}: {current_daily_rate:.8f}")
 
-    print(f"Reading data from wallet_history table to derive balances and last movements...")
+    logger.info(f"Reading data from wallet_history table to derive balances and last movements...")
 
     start_of_calculation_day_ts = to_timestamp(lit(calculation_date.strftime("%Y-%m-%d") + " 00:00:00"), "yyyy-MM-dd HH:mm:ss")
 
@@ -45,7 +48,7 @@ def calculate_cdi_bonus_for_day(spark: SparkSession, calculation_date: date, jdb
         .filter(col("timestamp") < start_of_calculation_day_ts)
 
     if wallet_history_raw_df.count() == 0:
-        print(f"No wallet history found before {calculation_date}. No bonus will be calculated for this day.")
+        logger.info(f"No wallet history found before {calculation_date}. No bonus will be calculated for this day.")
         return
 
     window_spec = Window.partitionBy("user_id").orderBy(col("timestamp").desc())
@@ -68,7 +71,7 @@ def calculate_cdi_bonus_for_day(spark: SparkSession, calculation_date: date, jdb
         (unix_timestamp(col("last_movement_timestamp")) <= unix_timestamp(threshold_timestamp))
     )
 
-    print(f"Users Eligible for Bonus in {calculation_date}: {eligible_users_df.count()}")
+    logger.info(f"Users Eligible for Bonus in {calculation_date}: {eligible_users_df.count()}")
 
     calculated_bonus_df = eligible_users_df.withColumn(
         "calculated_amount",
@@ -82,9 +85,9 @@ def calculate_cdi_bonus_for_day(spark: SparkSession, calculation_date: date, jdb
         col("calculated_amount").cast("numeric(18, 2)")
     )
 
-    print(f"CDI Bonus Calculated for Payout in {calculation_date}: {calculated_bonus_df.count()} records.")
+    logger.info(f"CDI Bonus Calculated for Payout in {calculation_date}: {calculated_bonus_df.count()} records.")
 
-    print(f"Writing results to daily_bonus_payouts table for {calculation_date}...")
+    logger.info(f"Writing results to daily_bonus_payouts table for {calculation_date}...")
     try:
         with get_db_connection() as conn:
             cur = conn.cursor()
@@ -100,9 +103,9 @@ def calculate_cdi_bonus_for_day(spark: SparkSession, calculation_date: date, jdb
             .options(**jdbc_properties) \
             .mode("append") \
             .save()
-        print(f"Data successfully inserted into daily_bonus_payouts for {calculation_date}.")
+        logger.info(f"Data successfully inserted into daily_bonus_payouts for {calculation_date}.")
     except Exception as e:
-        print(f"Error writing data to daily_bonus_payouts for {calculation_date}: {e}")
+        logger.error(f"Error writing data to daily_bonus_payouts for {calculation_date}: {e}")
 
 
 def calculate_cdi_bonus_for_period(spark: SparkSession, start_date_override: date = None, end_date_override: date = None):
@@ -127,12 +130,12 @@ def calculate_cdi_bonus_for_period(spark: SparkSession, start_date_override: dat
             max_overall_date = end_date_override
             if min_overall_date > max_overall_date:
                 raise ValueError("The start date cannot be after the end date.")
-            print(f"Calculation period set by arguments: {min_overall_date} to {max_overall_date}")
+            logger.info(f"Calculation period set by arguments: {min_overall_date} to {max_overall_date}")
         else:
             min_wallet_date, max_wallet_date = get_min_max_dates_from_wallet_history()
 
             if not min_wallet_date or not max_wallet_date:
-                print("Could not determine the period from wallet_history. Aborting calculation.")
+                logger.info("Could not determine the period from wallet_history. Aborting calculation.")
                 return
 
             min_overall_date = min_wallet_date + timedelta(days=1)
@@ -141,15 +144,15 @@ def calculate_cdi_bonus_for_period(spark: SparkSession, start_date_override: dat
             if max_wallet_date < max_overall_date:
                 max_overall_date = max_wallet_date
 
-            print(f"Calculation period determined automatically: {min_overall_date} to {max_overall_date}")
+            logger.info(f"Calculation period determined automatically: {min_overall_date} to {max_overall_date}")
 
         current_calculation_date = min_overall_date
         while current_calculation_date <= max_overall_date:
             calculate_cdi_bonus_for_day(spark, current_calculation_date, jdbc_url, jdbc_properties)
             current_calculation_date += timedelta(days=1)
 
-        print("\nHistorical CDI bonus calculation completed for the entire period.")
+        logger.info("\nHistorical CDI bonus calculation completed for the entire period.")
 
     except Exception as e:
-        print(f"General error in CDI bonus calculation: {e}")
+        logger.error(f"General error in CDI bonus calculation: {e}")
         raise
