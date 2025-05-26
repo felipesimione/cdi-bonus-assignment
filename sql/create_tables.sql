@@ -20,7 +20,7 @@ CREATE INDEX idx_wallet_history_user_timestamp ON wallet_history (user_id, times
 
 CREATE TABLE daily_interest_rates (
     rate_date DATE PRIMARY KEY,
-    daily_rate NUMERIC(10, 8) NOT NULL
+    daily_rate NUMERIC(18, 8) NOT NULL
 );
 
 CREATE TABLE daily_bonus_payouts (

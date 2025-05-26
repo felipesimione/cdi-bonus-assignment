@@ -1,4 +1,5 @@
 from bcb import sgs
+import decimal
 from datetime import date, timedelta
 from src.db import get_db_connection, get_min_max_dates_from_wallet_history
 import logging
@@ -26,8 +27,14 @@ def fetch_cdi_daily_rates(start_date, end_date):
         current_date = index.date()
         annual_cdi_rate = row.values[0]
 
-        daily_factor = (1 + annual_cdi_rate / 100)**(1/365) - 1
-        daily_rates[current_date] = daily_factor
+        try:
+            annual_cdi_rate = decimal.Decimal(str(annual_cdi_rate))
+        except decimal.InvalidOperation:
+            logger.warning(f"Could not convert annual CDI rate '{annual_cdi_rate}' for {current_date} to Decimal. Skipping.")
+            continue
+
+        daily_factor = (decimal.Decimal('1') + annual_cdi_rate / decimal.Decimal('100'))**(decimal.Decimal('1')/decimal.Decimal('365')) - decimal.Decimal('1')
+        daily_rates[current_date] = daily_factor.quantize(decimal.Decimal('0.0000000001'), rounding=decimal.ROUND_HALF_UP)
 
     logger.info(f"CDI rates fetched: {len(daily_rates)} days.")
     return daily_rates
@@ -69,7 +76,7 @@ def insert_daily_rates_into_db():
                     VALUES (%s, %s)
                     ON CONFLICT (rate_date) DO UPDATE SET daily_rate = EXCLUDED.daily_rate;
                     """
-                    cur.execute(insert_sql, (current_date, float(daily_rate)))
+                    cur.execute(insert_sql, (current_date, daily_rate))
                 else:
                     logger.info(f"Warning: No CDI rate found from BCB for {current_date}. Skipping this day.")
                 
