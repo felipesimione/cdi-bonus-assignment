@@ -13,7 +13,6 @@ def test_fetch_cdi_daily_rates_success():
 
         res = generate_daily_rates.fetch_cdi_daily_rates(dt, dt)
         assert list(res.keys()) == [dt]
-        # Valida a fórmula de cálculo
         annual = 13.65
         expected = (1 + annual / 100) ** (1/365) - 1
         assert abs(res[dt] - expected) < 1e-10
@@ -24,13 +23,11 @@ def test_fetch_cdi_daily_rates_bcb_fail():
         assert result == {}
 
 def test_insert_daily_rates_into_db_when_no_dates(monkeypatch):
-    # Simula get_min_max_dates_from_wallet_history com None
     monkeypatch.setattr(generate_daily_rates, "get_min_max_dates_from_wallet_history", lambda: (None, None))
     output = generate_daily_rates.insert_daily_rates_into_db()
-    assert output is None  # Early return
+    assert output is None
 
 def test_insert_daily_rates_into_db_inserts(monkeypatch):
-    # Simula happy path
     start = date(2022,1,1)
     end = date(2022,1,2)
     monkeypatch.setattr(generate_daily_rates, "get_min_max_dates_from_wallet_history", lambda: (start, end))

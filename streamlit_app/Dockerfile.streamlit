@@ -1,0 +1,20 @@
+FROM python:3.9-slim-buster
+
+WORKDIR /app
+
+COPY streamlit_app/requirements.txt ./
+RUN pip install --no-cache-dir -r requirements.txt
+
+
+RUN which streamlit || echo "WARNING: streamlit executable not found in PATH"
+# Lista o conteúdo de /usr/local/bin, que é o local comum para executáveis pip em imagens Python
+RUN ls -l /usr/local/bin/ || echo "WARNING: /usr/local/bin not found or empty"
+
+COPY src ./src/
+COPY streamlit_app ./streamlit_app/
+
+ENV PYTHONPATH=/app:$PYTHONPATH
+
+EXPOSE 8501
+
+CMD ["streamlit", "run", "app.py", "--server.port=8501", "--server.address=0.0.0.0"]

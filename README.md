@@ -22,8 +22,7 @@ This service ingests raw CDC wallet data, processes historical balances, applies
 
 1. **Clone the repository:**
     ```sh
-    git clone felipesimione/cdi-bonus-assignment
-    gh repo clone felipesimione/cdi-bonus-assignment # via GitHub CLI
+    git clone git@github.com:felipesimione/cdi-bonus-assignment.git
     cd cdi-bonus-assignment
     ```
 
