@@ -9,11 +9,12 @@ from src.transformation.calculate_cdi_bonus import calculate_cdi_bonus_for_perio
 from src.transformation.generate_daily_rates import insert_daily_rates_into_db
 import logging
 
+os.makedirs("src/logs", exist_ok=True)
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
     handlers=[
-        logging.FileHandler("app.log", encoding="utf-8"),
+        logging.FileHandler("src/logs/app.log", mode="w", encoding="utf-8"),
         logging.StreamHandler()
     ]
 )

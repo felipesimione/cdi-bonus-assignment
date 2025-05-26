@@ -55,6 +55,7 @@ services:
   app:
     build: .
     container_name: cdi_bonus_app
+    user: root
     environment:
       DATABASE_URL: ${DATABASE_URL}
       DATABASE_USER: ${DATABASE_USER}
@@ -69,7 +70,9 @@ services:
       - app_network
     volumes:
       - ./data:/app/data
-    command: ["spark-submit", "--master", "spark://spark-master:7077", "/app/src/main.py"]
+      - ./src/logs:/app/src/logs
+    command: >
+      bash -c "mkdir -p /app/src/logs && chmod 777 /app/src/logs && spark-submit --master spark://spark-master:7077 /app/src/main.py"
   
   tests:
     build: .
