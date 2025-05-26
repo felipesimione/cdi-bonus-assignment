@@ -19,21 +19,35 @@ def calculate_cdi_bonus_for_day(spark: SparkSession, calculation_date: date, jdb
     """
     logger.info(f"\n--- Processing bonus for date: {calculation_date} ---")
 
-    print(f"Reading interest rates from daily_interest_rates table for {calculation_date}...")
-    daily_interest_rates_df = spark.read \
-        .format("jdbc") \
-        .option("url", jdbc_url) \
-        .option("dbtable", "daily_interest_rates") \
-        .options(**jdbc_properties) \
-        .load() \
-        .filter(col("rate_date") == calculation_date)
+    current_daily_rate = None
+    rate_source_date = None
+    max_look_back_days = 90
 
-    if daily_interest_rates_df.count() == 0:
-        logger.info(f"Error: No interest rate found for date {calculation_date}. Skipping this day.")
+    search_date = calculation_date
+    for _ in range(max_look_back_days):
+        logger.info(f"Trying to read interest rates from the daily_interest_rates table for {search_date}...")
+        daily_interest_rates_df = spark.read \
+            .format("jdbc") \
+            .option("url", jdbc_url) \
+            .option("dbtable", "daily_interest_rates") \
+            .options(**jdbc_properties) \
+            .load() \
+            .filter(col("rate_date") == search_date)
+
+        if daily_interest_rates_df.count() > 0:
+            current_daily_rate = daily_interest_rates_df.select("daily_rate").collect()[0][0]
+            rate_source_date = search_date
+            break 
+        else:
+            logger.info(f"No interest rate found for date {search_date}. Trying the previous day...")
+            search_date -= timedelta(days=1)
+
+    if current_daily_rate is None:
+        logger.error(f"Error: No interest rate found for {calculation_date} or {max_look_back_days} previous days. Skipping this day.")
         return
 
-    current_daily_rate = daily_interest_rates_df.select("daily_rate").collect()[0][0]
-    logger.info(f"Interest rate for {calculation_date}: {current_daily_rate:.8f}")
+    logger.info(f"Interest rate used for {calculation_date} is from {rate_source_date}: {current_daily_rate:.8f}")
+
 
     logger.info(f"Reading data from wallet_history table to derive balances and last movements...")
 
