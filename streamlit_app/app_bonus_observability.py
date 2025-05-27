@@ -80,7 +80,6 @@ try:
         ) wh ON TRUE
         WHERE dbp.calculated_amount > 0
         AND wh.balance <= 100
-        -- Regra das 24 horas: o último movimento deve ser pelo menos 24h antes do payout_date
         AND dbp.payout_date - wh.timestamp < INTERVAL '24 hours'
         LIMIT 10;
     """)

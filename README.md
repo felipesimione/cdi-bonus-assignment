@@ -75,6 +75,8 @@ This service ingests raw CDC wallet data, processes historical balances, applies
     - **CDI Bonus Observability:** Business and data quality metrics for bonus payouts.
     - **Log Explorer:** Interactive log viewer for batch processing logs.
 
+**Note:** *Please, open the dashboard after some minutes or click in the refresh button to have the correct information.*
+
 ## Testing
 
 - Unit tests are located in the `tests` directory.
