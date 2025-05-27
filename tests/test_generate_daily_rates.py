@@ -1,5 +1,6 @@
 from unittest.mock import patch
 from datetime import date
+import decimal
 import pytest
 
 from src.transformation import generate_daily_rates
@@ -13,8 +14,8 @@ def test_fetch_cdi_daily_rates_success():
 
         res = generate_daily_rates.fetch_cdi_daily_rates(dt, dt)
         assert list(res.keys()) == [dt]
-        annual = 13.65
-        expected = (1 + annual / 100) ** (1/365) - 1
+        annual = decimal.Decimal('13.65')
+        expected = (decimal.Decimal('1') + annual / decimal.Decimal('100')) ** (decimal.Decimal('1')/decimal.Decimal('365')) - decimal.Decimal('1')
         assert abs(res[dt] - expected) < 1e-10
 
 def test_fetch_cdi_daily_rates_bcb_fail():

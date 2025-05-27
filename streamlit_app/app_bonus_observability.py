@@ -60,22 +60,54 @@ try:
 except Exception as e:
     st.error(f"Error in data quality check (Duplicate Payments): {e}")
 
-st.subheader("Business Rule Check: Minimum Balance")
+st.subheader("Business Rule Check: Minimum Balance and 24hrs Rule")
 try:
     df_dq_check = run_query(f"""
         SELECT
             dbp.payout_date,
             dbp.user_id,
-            dbp.calculated_amount
+            dbp.calculated_amount,
+            wh.balance AS balance_at_start_of_day,
+            wh.timestamp AS last_movement
         FROM daily_bonus_payouts dbp
+        JOIN LATERAL (
+            SELECT balance, timestamp
+            FROM wallet_history
+            WHERE user_id = dbp.user_id
+            AND timestamp < dbp.payout_date
+            ORDER BY timestamp DESC
+            LIMIT 1
+        ) wh ON TRUE
         WHERE dbp.calculated_amount > 0
-        AND dbp.user_id IN (
-            SELECT user_id FROM wallet_history
-            WHERE balance <= 100
-            AND timestamp < '{date.today() - timedelta(days=1)}'
-        )
-        LIMIT 10
+        AND wh.balance <= 100
+        -- Regra das 24 horas: o último movimento deve ser pelo menos 24h antes do payout_date
+        AND dbp.payout_date - wh.timestamp < INTERVAL '24 hours'
+        LIMIT 10;
     """)
+    # To test the dashboard
+    """
+    If you need to test this dashboard, you can use the following SQL:
+            SELECT
+            dbp.payout_date,
+            dbp.user_id,
+            dbp.calculated_amount,
+            wh.balance AS balance_at_start_of_day,
+            wh.timestamp AS last_movement
+        FROM daily_bonus_payouts dbp
+        JOIN LATERAL (
+            SELECT balance, timestamp
+            FROM wallet_history
+            WHERE user_id = dbp.user_id
+            AND timestamp < dbp.payout_date
+            ORDER BY timestamp DESC
+            LIMIT 1
+        ) wh ON TRUE
+        WHERE dbp.calculated_amount > 0
+        AND wh.balance <= 100
+        -- Regra das 24 horas: o último movimento deve ser pelo menos 24h antes do payout_date
+        AND dbp.payout_date - wh.timestamp < INTERVAL '24 hours'
+        LIMIT 10;
+    """
     if not df_dq_check.empty:
         st.warning("🚨 Data Quality Alert: Bonus calculated for users with balance below the limit!")
         st.dataframe(df_dq_check)

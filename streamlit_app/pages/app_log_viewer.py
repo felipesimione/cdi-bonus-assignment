@@ -1,6 +1,7 @@
 # streamlit: Log Explorer
 import streamlit as st
 import pandas as pd
+import numpy as np
 import re
 from datetime import datetime
 
@@ -9,6 +10,14 @@ LOG_PATH = "src/logs/app.log"
 st.set_page_config(layout="wide", page_title="Log Explorer")
 st.title("Log Explorer")
 st.write("*Dash to check batch processing logs*")
+
+PIPELINE_STEPS = [
+    "Generating raw data...",
+    "Inserting users into the database...",
+    "Running wallet history calculation...",
+    "Inserting daily rates into the database...",
+    "Calculating CDI bonus for the period..."
+]
 
 @st.cache_data
 def load_log(path):
@@ -26,7 +35,43 @@ def load_log(path):
         df['datetime'] = pd.to_datetime(df['datetime'], format='%Y-%m-%d %H:%M:%S,%f')
     return df
 
+def extract_step_timings(df, steps):
+    step_rows = []
+    for step in steps:
+        mask = df['message'].str.contains(step)
+        step_df = df[mask].copy()
+        if not step_df.empty:
+            first_row = step_df.iloc[0]
+            step_rows.append({
+                "step": step,
+                "start_time": first_row['datetime']
+            })
+    timings = []
+    for i, row in enumerate(step_rows):
+        start = row["start_time"]
+        end = step_rows[i+1]["start_time"] if i+1 < len(step_rows) else df['datetime'].max()
+        duration = (end - start).total_seconds()
+        timings.append({
+            "Step": row["step"],
+            "Start": start,
+            "End": end,
+            "Duration (s)": duration
+        })
+    return pd.DataFrame(timings)
+
+st.subheader("Pipeline Step Timings")
+
 df = load_log(LOG_PATH)
+
+if not df.empty:
+    timings_df = extract_step_timings(df, PIPELINE_STEPS)
+    if not timings_df.empty:
+        st.dataframe(timings_df)
+        st.bar_chart(timings_df.set_index("Step")["Duration (s)"])
+    else:
+        st.info("No pipeline step timings found in the logs.")
+else:
+    st.info("No log data to analyze pipeline timings.")
 
 if df.empty:
     st.warning("No log data found.")

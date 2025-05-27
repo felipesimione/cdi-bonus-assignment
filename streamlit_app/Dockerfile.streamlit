@@ -7,7 +7,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 
 RUN which streamlit || echo "WARNING: streamlit executable not found in PATH"
-# Lista o conteúdo de /usr/local/bin, que é o local comum para executáveis pip em imagens Python
+
 RUN ls -l /usr/local/bin/ || echo "WARNING: /usr/local/bin not found or empty"
 
 COPY src ./src/
