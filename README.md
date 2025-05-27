@@ -361,10 +361,44 @@ For detailed table structure and column descriptions, refer to `create_tables.sq
 - **Schema Management:**  
   Use migration tools (like Alembic or Flyway) for managing database schema changes in production environments.
 
+- **Data Validation with Pydantic (Future Recommendation):**
+  For future improvements, consider adopting [Pydantic](https://docs.pydantic.dev/) for data validation and settings management. Pydantic provides robust, type-safe data models that help catch errors early, ensure data consistency, and improve code readability.
+
+  **Why use Pydantic?**
+  - **Type Safety:** Enforces type hints at runtime, reducing bugs from unexpected data types.
+  - **Validation:** Automatically validates and parses input data, raising clear errors for invalid data.
+  - **Settings Management:** Easily manage configuration via environment variables or `.env` files using `pydantic.BaseSettings`.
+  - **Integration:** Works well with modern Python data pipelines and APIs.
+
+  **How it applies to this project:**
+  - **ETL Data Models:** Define schemas for CDC records, wallet history, and bonus payouts to validate data before processing with Spark or inserting into the database.
+  - **Configuration:** Replace manual environment variable parsing with Pydantic settings classes for cleaner, safer config management.
+  - **Testing:** Use Pydantic models in tests to generate valid and invalid data cases, improving test coverage and reliability.
+
+  **Example (for CDC record validation):**
+  ```python
+  from pydantic import BaseModel, validator
+  from datetime import datetime
+
+  class CDCRecord(BaseModel):
+      user_id: str
+      timestamp: datetime
+      amount_change: float
+
+      @validator('amount_change')
+      def amount_must_be_nonzero(cls, v):
+          if v == 0:
+              raise ValueError('amount_change must not be zero')
+          return v
+  ```
+
+  **Recommendation:**  
+  While the current codebase uses pandas and Spark DataFrames for flexibility, introducing Pydantic models as a validation layer before ingestion or transformation will make the pipeline more robust and maintainable as the project grows.
+
 ---
 
 For further details on the database schema, business rules, and function documentation, see the relevant sections above and the `create_tables.sql` file.
-<br><br><br><br>
+<br><br><br>
 
 
 # Function Documentation
