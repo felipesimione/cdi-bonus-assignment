@@ -102,4 +102,5 @@ st.subheader("Log Level Count")
 st.bar_chart(filtered['level'].value_counts())
 
 st.subheader("Log Timeline")
-st.line_chart(filtered.groupby(filtered['datetime'].dt.floor('T')).size())
+timeline = filtered.groupby(filtered['datetime'].dt.floor('T')).size().rename("Log Count").to_frame()
+st.line_chart(timeline)

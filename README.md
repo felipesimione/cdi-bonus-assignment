@@ -75,7 +75,8 @@ This service ingests raw CDC wallet data, processes historical balances, applies
     - **CDI Bonus Observability:** Business and data quality metrics for bonus payouts.
     - **Log Explorer:** Interactive log viewer for batch processing logs.
 
-**Note:** *Please, open the dashboard after some minutes or click in the refresh button to have the correct information.*
+> ⚠️ **Attention:**  
+**Note:** *Please, after open the dashboard, click in the refresh button to ensure the correct information.*
 
 ## Testing
 
@@ -88,7 +89,7 @@ This service ingests raw CDC wallet data, processes historical balances, applies
 ## Production Recommendations
 
 - **Transactional Database:**  
-  Store the calculated daily bonus payouts in the `daily_bonus_payouts` table in a PostgreSQL database. For production, use a managed PostgreSQL instance with high availability, automated backups, and point-in-time recovery to ensure data durability and reliability.
+  Stored the calculated daily bonus payouts in the `daily_bonus_payouts` table in a PostgreSQL database. For production, use a managed PostgreSQL instance with high availability, automated backups, and point-in-time recovery to ensure data durability and reliability.
 
 - **Data Access:**  
   - Applications and services should access bonus payout data via secure SQL queries or through an API layer.
@@ -108,6 +109,8 @@ This service ingests raw CDC wallet data, processes historical balances, applies
 - **Monitoring and Observability:**  
   - Integrate with monitoring tools (e.g., Prometheus, Grafana) to track database health, ETL pipeline status, and data quality metrics.
   - Set up alerting for failures, delays, or data anomalies.
+  - For quality check use properly tools like Soda and Amundsen (open source).
+  - For data catolog use properly tools like Alation and Glue Catalog.
 
 - **Security:**  
   - Store credentials and sensitive information securely using environment variables or a secrets manager.
@@ -125,11 +128,12 @@ This service ingests raw CDC wallet data, processes historical balances, applies
 - **Performance:**  
   - Monitor query performance and add indexes as needed (already present in the schema) to support efficient access patterns.
   - Partition large tables if necessary to maintain performance at scale.
+<br><br>
 
-**Note:**  
-The daily CDI rates are stored in the `daily_interest_rates` table and can be accessed for auditing, reporting, or recalculation as needed.
+> ⚠️ **Attention:**  
+**Note:** *The daily CDI rates are stored in the `daily_interest_rates` table and can be accessed similarly for auditing or recalculation purposes.*
 
-**Note:** The daily CDI rates are stored in the `daily_interest_rates` table and can be accessed similarly for auditing or recalculation purposes.
+<br>
 
 ## Design Choices
 
@@ -171,12 +175,16 @@ cdi-bonus-assignment/
 ├── requirements.txt             # Python dependencies
 └── README.md                    # Project documentation
 ```
+<br>
 
-**Note:**  
-- Each module is separated by responsibility (data ingestion, transformation, database, dashboard, etc.).
-- The `src/transformation/` folder contains the main ETL logic.
-- The `tests/` folder is for all test code.
-- The `streamlit_app/` folder contains the observability dashboard.
+> ⚠️ **Attention:**  
+> **Note:**  
+> - Each module is separated by responsibility (data ingestion, transformation, database,  dashboard, etc.).
+> - The `src/transformation/` folder contains the main ETL logic.
+> - The `tests/` folder is for all test code.
+> - The `streamlit_app/` folder contains the observability dashboard.
+
+<br>
 
 ### Database Schema Diagram
 
@@ -253,7 +261,9 @@ For detailed table structure and column descriptions, refer to `create_tables.sq
 - **Batch Processing:** The pipeline currently runs in batch mode; for production, a streaming approach may be preferable.
 - **Configuration:** Some parameters are hardcoded or set via environment variables; a more robust configuration management could be implemented.
 - **Testing:** Only core logic is unit tested; integration and end-to-end tests are limited.
-<br><br>
+- **Columnar Database:** Although columnar databases (such as Amazon Redshift, BigQuery, or ClickHouse) are optimized for analytical queries and large-scale aggregations, this project uses a normalized relational (row-based) schema in PostgreSQL. This choice prioritizes transactional integrity, data consistency, and integration with other operational systems, rather than analytical performance. While this approach is ideal for transactional workloads and data sharing with other services, it may not deliver the same query performance for complex analytics as a columnar data warehouse. For advanced analytical needs, data could be periodically exported or replicated to a dedicated columnar database.
+
+<br>
 
 ## Important Notes and Recommendations
 
@@ -272,6 +282,7 @@ For detailed table structure and column descriptions, refer to `create_tables.sq
   This will delete all data and re-run the table creation script.
 
 ### Setup Instructions
+*With more detail*
 
 1. **Clone the repository:**
     ```sh
