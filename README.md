@@ -51,6 +51,11 @@ This service ingests raw CDC wallet data, processes historical balances, applies
     docker-compose down --volumes
     ```
 
+    The environment file will be available on github, but ideally it should be hidden.
+    ```sh
+    .env
+    ```
+
     This will:
     - Build the Spark and application containers.
     - Start PostgreSQL and Spark services.
@@ -281,33 +286,6 @@ For detailed table structure and column descriptions, refer to `create_tables.sq
   docker-compose up -d
   ```
   This will delete all data and re-run the table creation script.
-
-### Setup Instructions
-*With more detail*
-
-1. **Clone the repository:**
-    ```sh
-    git clone git@github.com:felipesimione/cdi-bonus-assignment.git
-    cd cdi-bonus-assignment
-    ```
-2. **Configure environment variables:**  
-   The environment file will be available on github, but ideally it should be hidden.
-    ```sh
-    .env
-    ```
-3. **Start the services:**  
-   Use Docker Compose to build and start all services:
-    ```sh
-    docker-compose up -d
-    ```
-   This will automatically set up the database and run the pipeline.
-
-4. **Resetting the database:**  
-   If you need to reset the database, use:
-    ```sh
-    docker-compose down -v
-    docker-compose up -d
-    ```
 
 ---
 
