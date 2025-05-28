@@ -4,9 +4,9 @@ from pyspark.sql.types import StructType, StructField, IntegerType, StringType, 
 
 from db import get_spark_jdbc_properties
 from setup_data import generate_raw_cdc_data, insert_users, DEFAULT_NUM_LINES, DEFAULT_NUM_USERS, DEFAULT_OUTPUT_DIR, DEFAULT_OUTPUT_FILENAME
-from transformation.wallet_history import calculate_wallet_history
-from src.transformation.calculate_cdi_bonus import calculate_cdi_bonus_for_period
-from src.transformation.generate_daily_rates import insert_daily_rates_into_db
+from src.extract.wallet_history import calculate_wallet_history
+from src.transform.calculate_cdi_bonus import calculate_cdi_bonus_for_period
+from src.extract.generate_daily_rates import insert_daily_rates_into_db
 import logging
 
 os.makedirs("src/logs", exist_ok=True)

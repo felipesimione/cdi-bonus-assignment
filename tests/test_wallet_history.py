@@ -2,7 +2,7 @@ from pyspark.sql import SparkSession
 from pyspark.sql.types import StructType, StructField, IntegerType, TimestampType
 import pytest
 
-from src.transformation.wallet_history import calculate_wallet_history
+from src.extract.wallet_history import calculate_wallet_history
 
 @pytest.fixture(scope="session")
 def spark():

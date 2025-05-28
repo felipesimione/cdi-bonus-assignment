@@ -160,10 +160,11 @@ cdi-bonus-assignment/
 │   ├── logs/                    # Log files
 │   ├── main.py                  # Main orchestration script
 |   ├── setup_data.py            # Loads initial data required for the pipeline to run.
-│   └── transformation/          # ETL transformation scripts
+│   └── extract/                 # ETL Extract scripts
 │       ├── calculate_cdi_bonus.py
-│       ├── generate_daily_rates.py
-│       └── wallet_history.py
+|       └── wallet_history.py
+│   └── transform/               # ETL transformation and load scripts
+│       └── generate_daily_rates.py
 │
 ├── streamlit_app/               # Streamlit dashboard for observability
 │
@@ -180,7 +181,7 @@ cdi-bonus-assignment/
 > ⚠️ **Attention:**  
 > **Note:**  
 > - Each module is separated by responsibility (data ingestion, transformation, database,  dashboard, etc.).
-> - The `src/transformation/` folder contains the main ETL logic.
+> - The `src/transform/` and `srx/extract` folders contains the main ETL logic.
 > - The `tests/` folder is for all test code.
 > - The `streamlit_app/` folder contains the observability dashboard.
 

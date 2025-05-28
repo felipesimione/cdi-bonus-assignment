@@ -3,7 +3,7 @@ from unittest.mock import patch, MagicMock, call
 from datetime import date, datetime
 import logging
 
-from src.transformation.calculate_cdi_bonus import calculate_cdi_bonus_for_day, calculate_cdi_bonus_for_period
+from src.transform.calculate_cdi_bonus import calculate_cdi_bonus_for_day, calculate_cdi_bonus_for_period
 
 from pyspark.sql import SparkSession
 from pyspark.sql.types import StructType, StructField, IntegerType, StringType, FloatType, TimestampType, DateType
@@ -22,7 +22,7 @@ def spark_session():
 def create_spark_df(spark, data, schema):
     return spark.createDataFrame(data, schema)
 
-@patch('src.transformation.calculate_cdi_bonus.get_db_connection')
+@patch('src.transform.calculate_cdi_bonus.get_db_connection')
 @patch('pyspark.sql.DataFrameWriter.save')
 @patch('pyspark.sql.DataFrameReader.load')
 def test_calculate_cdi_bonus_for_day_success_eligible_users(mock_load, mock_save, mock_get_db_connection, spark_session, caplog):

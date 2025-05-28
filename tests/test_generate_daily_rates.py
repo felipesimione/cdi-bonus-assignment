@@ -3,10 +3,10 @@ from datetime import date
 import decimal
 import pytest
 
-from src.transformation import generate_daily_rates
+from src.extract import generate_daily_rates
 
 def test_fetch_cdi_daily_rates_success():
-    with patch("src.transformation.generate_daily_rates.sgs.get") as mock_get:
+    with patch("src.extract.generate_daily_rates.sgs.get") as mock_get:
         import pandas as pd
         dt = date(2022, 1, 1)
         df = pd.DataFrame({4389: [13.65]}, index=[pd.Timestamp(dt)])
@@ -19,7 +19,7 @@ def test_fetch_cdi_daily_rates_success():
         assert abs(res[dt] - expected) < 1e-10
 
 def test_fetch_cdi_daily_rates_bcb_fail():
-    with patch("src.transformation.generate_daily_rates.sgs.get", side_effect=Exception("Fail")):
+    with patch("src.extract.generate_daily_rates.sgs.get", side_effect=Exception("Fail")):
         result = generate_daily_rates.fetch_cdi_daily_rates(date(2022,1,1), date(2022,1,2))
         assert result == {}
 
