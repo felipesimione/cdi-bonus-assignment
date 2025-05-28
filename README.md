@@ -361,6 +361,8 @@ For detailed table structure and column descriptions, refer to `create_tables.sq
   For broader integration, consider exposing bonus payout data via a REST API.
 - **Schema Management:**  
   Use migration tools (like Alembic or Flyway) for managing database schema changes in production environments.
+- **Bulk Insert**:
+  The project use cur.execute to input data in Postgres adding row by row, but the ideal is to use bulkload to input all the rows together. For batch processing and this case, this is a better approach in termos of process.
 
 - **Data Validation with Pydantic (Future Recommendation):**
   For future improvements, consider adopting [Pydantic](https://docs.pydantic.dev/) for data validation and settings management. Pydantic provides robust, type-safe data models that help catch errors early, ensure data consistency, and improve code readability.
