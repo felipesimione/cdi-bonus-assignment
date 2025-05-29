@@ -119,9 +119,6 @@ def step_run_wallet_history_calculation(spark, RAW_DATA_PATH):
         )
         logger.info("[MAIN] Raw CDC file read successfully.")
 
-        df_raw_cdc.show(5)
-        df_raw_cdc.printSchema()
-
         logger.info("[MAIN] Calling the wallet history calculation function...")
         df_wallet_history = calculate_wallet_history(df_raw_cdc)
 
